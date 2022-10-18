@@ -1,12 +1,11 @@
 import pandas as pd
 import sympy as sp
 from matplotlib import pyplot as plt
-from sympy.plotting.plot import MatplotlibBackend, Plot
+from sympy.plotting.plot import MatplotlibBackend
 
 
-def get_sympy_subplots(plot: Plot):
+def get_sympy_subplots(plot):
     backend = MatplotlibBackend(plot)
-
     backend.process_series()
     backend.fig.tight_layout()
     return backend.ax[0]
@@ -16,12 +15,8 @@ def from_fun(fun, table):
     return list(fun.subs("x", i) for i in table["x"])
 
 
-def calculate_e(table, num):
-    return list((table["y"][i] - table["f{0}(x)".format(str(num))][i]) ** 2 for i in range(n)) + [None]
-
-
-def calcualte_Q(table, num):
-    return table["e{0}".format(num)].sum()
+def calculate_e(y, fun, size):
+    return [(y[i] - fun[i]) ** 2 for i in range(size)] + [None]
 
 
 def plot(fun, x_list, y_list):
@@ -31,12 +26,8 @@ def plot(fun, x_list, y_list):
     return pl
 
 
-def to_float(x):
-    return sp.Float(x)
-
-
-def to_float_list(list):
-    return (to_float(i) for i in list)
+def to_float(list):
+    return (sp.Float(i) for i in list)
 
 
 # Изначальная таблица
@@ -60,7 +51,7 @@ table.loc[len(table)] = list(table[i].sum() for i in table.columns)
 table = table.rename(index={len(table) - 1: "sum"})
 print(table)
 
-# Инициализация переменных сигм для лучшего представления математической формулы
+# Инициализация переменных сигм для понятного представления математической формулы
 sum_x2 = table["x^2"]["sum"]
 sum_x3 = table["x^3"]["sum"]
 sum_x4 = table["x^4"]["sum"]
@@ -77,7 +68,7 @@ a, b = sp.symbols('a, b')
 solve = sp.linsolve([a * sum_x2 + b * sum_x - sum_xy,
                      a * sum_x + b * n - sum_y],
                     (a, b))
-a, b = to_float_list(solve.args[0])
+a, b = to_float(solve.args[0])
 
 # Первый график
 x = sp.symbols('x')
@@ -90,7 +81,7 @@ solve = sp.linsolve([a * sum_x4 + b * sum_x3 + c * sum_x2 - sum_x2y,
                      a * sum_x3 + b * sum_x2 + c * sum_x - sum_xy,
                      a * sum_x2 + b * sum_x + c * n - sum_y],
                     (a, b, c))
-a, b, c = to_float_list(solve.args[0])
+a, b, c = to_float(solve.args[0])
 
 # Второй график
 fun_2 = a * x * x + b * x + c
@@ -103,26 +94,22 @@ solve = sp.linsolve([a * sum_x6 + b * sum_x5 + c * sum_x4 + d * sum_x3 - sum_x3y
                      a * sum_x4 + b * sum_x3 + c * sum_x2 + d * sum_x - sum_xy,
                      a * sum_x3 + b * sum_x2 + c * sum_x + d * n - sum_y],
                     (a, b, c, d))
-a, b, c, d = to_float_list(solve.args[0])
+a, b, c, d = to_float(solve.args[0])
 
 # Третий график
 fun_3 = (a * x ** 3) + (b * x ** 2) + (c * x) + d
 pl_3 = plot(fun_3, x_list, y_list)
 
 # Вычисление квадратов отклонений
-table_2 = table[["x", "y"]][:len(table['x']) - 1]
-table_2.loc[len(table_2)] = list(None for i in table_2.columns)
-table_2 = table_2.rename(index={len(table_2) - 1: "Q"})
-table_2["f1(x)"] = from_fun(fun_1, table_2)
-table_2["f2(x)"] = from_fun(fun_2, table_2)
-table_2["f3(x)"] = from_fun(fun_3, table_2)
-table_2["e1"] = calculate_e(table_2, 1)
-table_2["e1"]["Q"] = calcualte_Q(table_2, 1)
-table_2["e2"] = calculate_e(table_2, 2)
-table_2["e2"]["Q"] = calcualte_Q(table_2, 2)
-table_2["e3"] = calculate_e(table_2, 3)
-table_2["e3"]["Q"] = calcualte_Q(table_2, 3)
-print(table_2)
+table = table[["x", "y"]][:len(table['x']) - 1]
+table.loc[len(table)] = list(None for i in table.columns)
+table = table.rename(index={len(table) - 1: "Q"})
+for i in ((1, fun_1), (2, fun_2), (3, fun_3)):
+    table["f{0}(x)".format(i[0])] = from_fun(i[1], table)
+for i in range(1, 4):
+    e, f = "e{0}".format(i), 'f{0}(x)'.format(i)
+    table[e] = calculate_e(table['y'], table[f], n)
+    table.at["Q", e] = table[e].sum()
 
 # Совмещение графиков
 final_plot = pl_1
